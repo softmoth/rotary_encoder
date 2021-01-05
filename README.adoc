@@ -1,0 +1,118 @@
+= rotary_encoder
+:toc: preamble
+:issues: https://github.com/softmoth/rotary_encoder/issues
+:license: https://github.com/softmoth/rotary_encoder/blob/master/LICENSE
+
+Library for reading rotary encoders from a micro-controller unit
+
+== Features
+
+This library is very much inspired by the code & ideas found at http://www.buxtronix.net/2011/10/rotary-encoders-done-properly.html. That means it handles debouncing the signal robustly in software, and should work well with even noisy, low-quality encoders.
+
+It is written in ANSI C, with no exernal dependencies, so it is suitable for any micro-controller unit and any development environment. It does not require Arduino libraries.
+
+=== Encoder types
+
+An application can define and use multiple encoders. Each encoder can be one of three types:
+
+* *Full-step* encoders move through a full 4 states with each detent, and stop with voltage high on both pins.
+* *Half-step* encoders move through 2 of the 4 states with each detent, stopping with voltage high on both pins or low on both pins.
+* *Tristate* encoders move through 3 states rather than 4.
+
+== Installation
+
+The library is ANSI C code with no external dependencies, and should compile
+with any compiler for any environment. Simply copy rotary_encoder.c and
+rotary_encoder.h into your project as you would any other source files.
+
+== Examples
+
+=== `skeleton`
+[source,c]
+----
+#include "rotary_encoder.h"
+
+#define READ_ENCODER_PINS(pin1, pin2) \
+            (digitalRead(pin1) | (digitalRead(pin2) << 1))
+
+/* Simple counter to track the number of turns */
+int Counter = 0;
+
+/* Define an encoder */
+#define ENCODER_PIN_A 8
+#define ENCODER_PIN_B 9
+static rotenc_encoder_t Encoder = ROTENC_FULL_STEP_INIT;
+
+void process_encoder(void) {
+    Counter += rotenc_process_pins(&Encoder,
+                    READ_ENCODER_PINS(ENCODER_PIN_A, ENCODER_PIN_B));
+}
+
+int main(void)
+{
+    /* Loop */
+    while (1) {
+        process_encoder();  /* Poll periodically */
+
+        /* Now, do something with Counter */
+        exit(0);
+    }
+}
+----
+
+=== `simulation`
+
+The `examples/simulation` program, handy when developing the library itself, requires the `curses` library for terminal input. This is likely to work on Unix and OS X systems.
+
+== Reference
+
+=== Initialization
+
+Simply define a variable of type `rotenc_encoder_t`, and initialize it with the appropriate macro for the <<Encoder types,type>> of encoder.
+[source,c]
+rotenc_encoder_t encoder1 = ROTENC_FULL_STEP_INIT;
+rotenc_encoder_t encoder2 = ROTENC_HALF_STEP_INIT;
+rotenc_encoder_t encoder3 = ROTENC_TRISTATE_INIT;
+
+=== Processing updates
+
+Regardless of whether you set up interrupts on pin changes or poll the pins in a loop, the processing is the same.
+
+[source,c]
+    /* pins is an integer between 0 and 3. If both encoder pins     are high, pins == 3. If both are low, pins == 0. */
+    unsigned char pins = READ_ENCODER_PINS(ENCODER_PIN_A, ENCODER_PIN_B);
+    signed char rotation = rotenc_process_pins(&encoder1, pins);
+
+A few notes on this example:
+
+* `READ_ENCODER_PINS` is something you will need to provide; see the `examples/skeleton.c` <<Examples,example>> for a hint in the right direction.
+* `ENCODER_PIN_A` and `ENCODER_PIN_B`, of course, depend on how you've connected the encoder to the MCU. It can be hard to know which order the pins go in; if your encoder is registering the wrong direction, just swap the wires.
+* `rotation` is `-1` if the encoder moved left, `+1` if right, and `0` if there was a partial move, bouncing, or any invalid input.
+
+=== Removing unused encoder types
+
+If you only use one or two encoder types, you can remove the unused state tables:
+
+[source,c]
+/* Define only the wanted types */
+#define ROTENC_FULL_STEP
+#define ROTENC_HALF_STEP
+#define ROTENC_TRISTATE
+#include "rotary_encoder.h"
+
+== Bugs
+
+If you find this doesn't work with your development environment, please {issues}[open an issue].
+
+== License
+
+[subs=+macros]
+----
+/* Copyright 2021 Tim Siegel <siegeltr@gmail.com>
+ * Licenced under the https://github.com/softmoth/rotary_encoder/blob/master/LICENSE[GNU GPL Version 3]
+
+ * Portions of this code derived from
+ * https://github.com/buxtronix/arduino/tree/master/libraries/Rotary[https://github.com/buxtronix/arduino/]:
+ * Copyright 2011 Ben Buxton. Licenced under the GNU GPL Version 3.
+ */
+----
